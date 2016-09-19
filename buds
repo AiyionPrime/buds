@@ -26,6 +26,7 @@ PASSPHRASE="$2"
 #            on different hardware
 TAREXTRAPARAMS="--exclude=.cache/gstreamer-1.0/*"
 
+
 # Create directory for backup and log
 mkdir -p $BACKUPDIR
 if [ "$?" -ne "0" ]; then
@@ -46,16 +47,26 @@ cmdtest() {
   # (can handle unlimited parameters, but exits on first fail)
   log "Checking necessary tools"
   for cmd in $*; do
-    log "Looking for '$1' command"
-    if ! type $1 >/dev/null ; then
-      log "This tool needs '$1' to run properly. Consider installing it."
+    log "Looking for '$cmd' command"
+    if ! type $cmd >/dev/null ; then
+      log "This tool needs '$cmd' to run properly. Consider installing it."
       exit 1
     fi
-    log "Found $1."
+    log "Found $cmd."
   done
 }
 
-cmdtest rsync
+cmdtest rsync adb
+
+if [ $1 = "-adb" ]; then
+  log "Creating adb tunnel"
+  # TODO write something that allocates a free port... i'll take 2222 for now as it works for me
+  log "Using port 2222"
+  adb forward tcp:2222 tcp:22
+  DEVICEUSER="-p 2222 $DEVICEUSER"
+  HOST=localhost
+fi
+
 
 # TODO HERE
 # check host is up
@@ -108,7 +119,7 @@ log "Finished getting list of installed apps from device"
 
 # Start backup
 log "Copying files from device"
-ssh $DEVICEUSER@$HOST "echo $PASSPHRASE | sudo -S --prompt='' tar -c -z $TAREXTRAPARAMS -f - ." > $COMPRESSEDBACKUP
+ssh $DEVICEUSER@$HOST "echo $PASSPHRASE | sudo -S --prompt='' tar -c -z $TAREXTRAPARAMS -f - ." | pv > $COMPRESSEDBACKUP
 
 if [ "$?" = "0" ]; then
   log "Finished copying files from device to $COMPRESSEDBACKUP"
