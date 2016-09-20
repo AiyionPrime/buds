@@ -1,0 +1,26 @@
+#!/bin/sh
+# Restore for 'Backup Ubuntu Device Script'
+#
+# Goal: restoring previous backups
+# Assumptions:
+#  * Device has either ssh enabled or is at least in developer mode
+#  * This machine has an ssh key which is on the mobile device
+
+
+examine_backup() {
+  echo "$1";
+  # TODO show backupdate
+  # TODO show time it took to back this up
+  # TODO show amount of apps
+  
+}
+
+list_backups() {
+  for i in backup/*
+  do
+    examine_backup $i
+  done
+}
+
+
+list_backups
