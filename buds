@@ -9,8 +9,9 @@
 #  * This machine has an ssh key which is on the device
 
 if [ "$#" -ne 2 ]; then
-  echo "Specify hostname or IP address of device, and password/passphrase"
+  echo "Specify hostname or IP address of device or hint at using adb, and password/passphrase"
   echo "e.g. 'buds 192.168.1.20 1234'"
+  echo "e.g. 'buds -adb 1234'"
   exit 1
 fi
 
