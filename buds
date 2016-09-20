@@ -22,6 +22,10 @@ CLICKFILE="$BACKUPDIR/clicks.list"
 DEVICEUSER="phablet"
 HOST="$1"
 PASSPHRASE="$2"
+
+# empty the following string if you want to check your hostkey manually
+SSHPARAMS="-o StrictHostKeyChecking=no"
+
 # Tar extra parameters
 # gstreamer: causes video playback issues if restoring the backup
 #            on different hardware
@@ -57,14 +61,20 @@ cmdtest() {
   done
 }
 
-cmdtest rsync adb
+cmdtest rsync adb pv
+
+getfreeport() {
+  for freeport in $(seq 1025 65000); do 
+    echo -ne "\035" | telnet 127.0.0.1 $freeport > /dev/null 2>&1; [ $? -eq 1 ] && break;
+  done
+}
 
 if [ $1 = "-adb" ]; then
   log "Creating adb tunnel"
-  # TODO write something that allocates a free port... i'll take 2222 for now as it works for me
-  log "Using port 2222"
-  adb forward tcp:2222 tcp:22
-  DEVICEUSER="-p 2222 $DEVICEUSER"
+  getfreeport
+  log "Using port $freeport"
+  adb forward tcp:$freeport tcp:22
+  SSHPARAMS="-p $freeport $SSHPARAMS"
   HOST=localhost
 fi
 
@@ -74,9 +84,12 @@ fi
 # check host is actually an ubuntu device
 # Lots of checking for each of these steps to handle failures
 
+# Neither the User, nor the adress will change during the backup
+MOBILEDEVICE="$SSHPARAMS $DEVICEUSER@$HOST"
+
 # Get device code name
 log "Get device code name"
-DEVICENAME=$(ssh $DEVICEUSER@$HOST getprop ro.product.name)
+DEVICENAME=$(ssh $MOBILEDEVICE getprop ro.product.name)
 if [ "$DEVICENAME" = "" ]; then
   log "Failed to get device code name"
   exit 1
@@ -85,7 +98,7 @@ log "Got device code name: $DEVICENAME"
 
 # Get device serial number
 log "Get device serial number"
-DEVICESERIAL=$(ssh $DEVICEUSER@$HOST getprop ro.serialno)
+DEVICESERIAL=$(ssh $MOBILEDEVICE getprop ro.serialno)
 if [ "$DEVICESERIAL" = "" ]; then
   log "Failed to get device serial number"
   exit 2
@@ -96,7 +109,7 @@ log "Got device serial number: $DEVICESERIAL"
 COMPRESSEDBACKUP=$BACKUPDIR/$DEVICENAME-$DEVICESERIAL.tgz
 
 log "Determine disk space used on device"
-DEVICESPACE=$(ssh $DEVICEUSER@$HOST "echo $PASSPHRASE | sudo -S --prompt='' du -bks /home/phablet/" | awk '{ print $1}')
+DEVICESPACE=$(ssh $MOBILEDEVICE "echo $PASSPHRASE | sudo -S --prompt='' du -bks /home/phablet/" | awk '{ print $1}')
 log "Finished determining disk space used on device"
 
 log "Determine free space on current machine"
@@ -115,12 +128,16 @@ fi
 
 # Get list of applications installed on device
 log "Get list of installed apps from device"
-ssh $DEVICEUSER@$HOST 'click list' > $CLICKFILE
+ssh $MOBILEDEVICE 'click list' > $CLICKFILE
 log "Finished getting list of installed apps from device"
 
 # Start backup
 log "Copying files from device"
-ssh $DEVICEUSER@$HOST "echo $PASSPHRASE | sudo -S --prompt='' tar -c -z $TAREXTRAPARAMS -f - ." | pv > $COMPRESSEDBACKUP
+ssh $MOBILEDEVICE "echo $PASSPHRASE | sudo -S --prompt='' tar -c -z $TAREXTRAPARAMS -f - ." | pv > $COMPRESSEDBACKUP
+
+if [ $1 = "-adb" ]; then
+  adb kill-server
+fi
 
 if [ "$?" = "0" ]; then
   log "Finished copying files from device to $COMPRESSEDBACKUP"
