@@ -11,9 +11,11 @@ examine_backup() {
   echo "$1";
   # TODO show backupdate
   # TODO show time it took to back this up
-  # TODO show amount of apps
-  
-}
+  # show amount of apps
+  app_amount="$(wc -l < "$1"/clicks.list)"
+  echo "  Apps: $app_amount"
+  # TODO show size
+  }
 
 list_backups() {
   for i in backup/*
