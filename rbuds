@@ -14,7 +14,9 @@ examine_backup() {
   # show amount of apps
   app_amount="$(wc -l < "$1"/clicks.list)"
   echo "  Apps: $app_amount"
-  # TODO show size
+  # show size
+  backup_size="$(du -h  "$1" | cut -f1)"
+  echo "  Size: $backup_size"
   }
 
 list_backups() {
